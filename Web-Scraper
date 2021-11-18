@@ -1,0 +1,231 @@
+##############################################
+# Name: Python Music Engine
+# Author: Dylan R.Jones
+# Creation 29/01/2020
+# Last Updated: 25/03/2020
+# Version: 3.2
+# Description: A web scraping device for YouTube behind a simple GUI.
+##############################################
+from bs4 import BeautifulSoup
+import tkinter as tk
+import imageio
+import tempfile
+import requests, io, re, os, pafy, lxml
+
+
+LARGE_FONT=("Verdana",18)#sets a font to be used throughout program
+
+MEDIUM_FONT =("Verdana",12)
+
+
+class app():#initialise class
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.configure(bg = 'light blue')
+        self.root.geometry('%dx%d+0+0' % (1000, 800))#sets the size of frame
+        self.root.wm_title("Python Music Engine")#title users will see when ran at top right of screen
+        self.frame = tk.Frame(self.root, bg = 'light blue')#background of frames
+        self.frame.pack()#making sure its on the screen
+        self.mainScreen()
+
+    def mainScreen(self):
+        self.frame.pack_forget()#forgets possible widgets set previously
+        self.frame = tk.Frame(self.root, bg = 'light blue')
+        self.frame.pack()
+        self.buttonFrame = tk.Frame(self.root,bg="light blue")
+        self.buttonFrame.pack(side="top", fill = "x")#making new frame for buttons within frame
+        label1 = tk.Label(self.frame, text ="Welcome to Python Music Player", font =LARGE_FONT, bg = "light blue")
+        label1.pack()
+        
+        photo1 = tk.PhotoImage(file="image_for_hs.png")#what the file is called
+        label = tk.Label (self.frame, image=photo1)
+        label.image = photo1
+        label.pack(pady=10,padx=10)#giving the image the padding of 10 pixels on it x and y axis
+
+
+        buttonM = tk.Button(self.buttonFrame, text = "Search Music", width = 25, height= 3 , bg = "white",command=lambda:self.searchScreen()).pack(side="top",padx=15,pady=35)#will open the search screen function if clicked
+        buttonM1 = tk.Button(self.buttonFrame, text = "Favourites Screen", width = 25,height = 3, bg = "white",command=lambda:self.favouritePage()).pack(side="top",padx=15,pady=35)
+
+
+    def searchScreen(self):
+        
+        self.buttonFrame.pack_forget()#forgets the button frame set
+        self.frame.pack_forget()
+        
+        self.frame = tk.Frame(self.root, bg = 'light blue')
+        self.frame.pack()#a frame encapsulated within this screen
+
+                
+        bannerImg = tk.PhotoImage(file="search_screen_img.png")
+        bannerLabel = tk.Label (self.frame,bg="light blue" ,image = bannerImg)
+        bannerLabel.image = bannerImg
+        bannerLabel.pack(fill="x")#fills all available space its allowed to on x axis
+
+
+        label = tk.Label(self.frame, text ="Search Screen",font =LARGE_FONT, bg = "light blue").pack(pady=10,padx=10)#creating title widget
+        
+        t = tk.Entry(self.frame, width = 50)#Tkinters Entry box widget
+        t.pack(pady=25,padx=60)
+
+        self.local_Frame = tk.Frame(self.frame, bg = 'light blue')
+        self.local_Frame.pack(side = tk.BOTTOM)#creating a new frame and placing it at the bottom of the frame
+        
+        titleLabel = tk.Label (self.frame,text="",bg ="light blue").pack()#creating empty labels to be filled when data is got
+        urlLabel = tk.Label(self.frame, text = "", bg ="light blue").pack()
+        
+        
+        button1 = tk.Button(self.local_Frame, text = "Back to Home", width = 15,height=2,bg="white", command=lambda:self.mainScreen()).pack(pady=30,padx=30, side = tk.LEFT)#tk.left allows them to show horizontally
+        
+        button2 = tk.Button(self.local_Frame, text = "Load Search",width = 15,height=2,bg="white", command =lambda:self.getInput(t)).pack(pady=30,padx=30,  side = tk.LEFT)
+        
+        button3 = tk.Button(self.local_Frame, text = "Play",width = 15,height=2,bg="white", command =lambda:self.playSong()).pack(pady=30,padx=30,  side = tk.LEFT)
+
+        button4 = tk.Button(self.local_Frame, text = "Like this? Save it!",width = 15,height=2,bg="white", command = lambda:self.saveSong()).pack(pady=30,padx=30, side = tk.LEFT)
+
+        button5 = tk.Button(self.local_Frame, text = "Not what you wanted? Clear it!",width = 15,height=2,bg="white", command = lambda:self.clearSearch()).pack(pady=30,padx=30, side = tk.LEFT)
+
+    def clearSearch(self):
+        self.frame.pack_forget()#forgets the frames widgets
+        self.searchScreen()#restarts the search screen func
+        
+
+    def getInput(self, t):#runs when the button Load Search is clicked
+        timerlbl = tk.Label(self.frame,text="Waiting...", bg="light blue")
+        timerlbl.pack()
+        
+        base = "https://www.youtube.com/results?search_query="#base query string being worked with
+
+
+        if len(t.get())== 0:#checks if there is nothing in the entry box
+            self.noEntryBox()#runs this pop up box function
+        self.uInput = t.get()#grabs entered text from Entry Box
+        self.uInput.replace(" ","+")#replaces potential space between words with pluses so it can be searched
+        
+        self.page = requests.get(base+self.uInput)#gets base link of search link, adds the input to the end to search youtube 
+        soup = BeautifulSoup(self.page.content, features = "lxml")#getting all html content 
+        links = soup.find_all("a",attrs={"class":"yt-uix-tile-link"})#looks for that specific class within the html data
+
+        self.linkList =[]#initialising the lists 
+        self.titleList = []
+        timerlbl.pack_forget()#forgets timer label
+        for x in links:
+            title = x.get("title")
+            url = x.get("href")
+            self.titleList.append(title)
+        for link in links:
+            if "/watch?v=" in re.split(":(?=http)",link["href"].replace("/url?q=",""))[0]:
+                self.linkList.append(str(re.split(":(?=http)",link["href"].replace("/url?q=",""))))#appends list to add the link in a certain format
+        self.url = "https://youtube.com" + self.linkList[1].replace("","").replace("[","").replace("]","").replace("'","")#formatting link and removing unneccessary characters
+        self.finalTitle = "Title: " + self.titleList[1]
+
+        titleLabel = tk.Label(self.frame,text = self.finalTitle,font =MEDIUM_FONT,bg = "light blue").pack()#creates labels to be placed on the frame with the title and url 
+        urlLabel = tk.Label(self.frame, text = self.url,font =MEDIUM_FONT, bg = "light blue").pack()
+        
+        self.getImage(self.page)#runs function to get thumbnail
+
+    def getImage(self,page):
+        soup = BeautifulSoup(self.page.text,'html.parser')
+        imgtags = soup.find_all('img')#finding all img tags in the html 
+        urls = [img["src"] for img in imgtags]#grabbing the img sources from html
+        imageList = []
+        for x in urls:
+            if "https://" in x:#https is where the genuine thumbnail is
+                best_photo = x
+                get_response = requests.get(best_photo, stream = True)#making sure that there is a connection
+                with open("temp.jpg","wb")as f:#opening a file to save images to
+                    for chunk in get_response.iter_content(chunk_size=1024):#chunks are image data
+                        if chunk:
+                            f.write(chunk)
+                    break
+        imageList.append(imageio.imread("temp"+".jpg"))#using image io to append the image lift, jpgs do not work on tkinter therefore have to be converted to gif
+        imageio.mimsave("temp"+".gif",imageList)#first is new name, second is old
+        os.remove("temp"+".jpg")#removes the old name
+        photo = tk.PhotoImage(file="temp"+".gif")#setting the photoimage to be from file created
+        label= tk.Label(self.frame, image=photo) #creating instance of photo to be put on frame
+        label.image = photo
+        label.pack()
+    
+    def playSong(self):
+        video = pafy.new(self.url)#creates a new instance for pafy to open the song
+        best = video.getbest()#gets best possible resolution for that video
+        playSong = best.url
+        os.startfile(playSong)#plays file through os. functions 
+
+    
+    def saveSong(self):
+        f = open("saveList.txt","a")#opens the text file to append it
+        f.write("\n"+self.url+"\n"+self.finalTitle)#saving to the file the necessary data
+        f.close()#closes file
+
+    def favouritePage(self):
+        self.buttonFrame.pack_forget()#forgets buttons from homescreen
+        self.frame.pack_forget()
+        self.frame = tk.Frame(self.root, bg = 'light blue')
+        self.frame.pack()
+        
+        favouriteBanner = tk.PhotoImage(file="favourite_screen_img.png")
+        label = tk.Label(self.frame, image = favouriteBanner)
+        label.image = favouriteBanner
+        label.pack()
+        
+        label = tk.Label(self.frame,text ="Favourite Screen",font =LARGE_FONT, bg = "light blue").pack(pady=10,padx=10)
+
+        button1 = tk.Button(self.frame, text = "Back to Home",width=15, height = 2, command=lambda:self.mainScreen()).pack(pady=15,padx=15)#takes user back to home screen
+        
+        button2 = tk.Button(self.frame, text = "Load Data",width=15, height = 2, command=lambda:self.loadData()).pack(pady=15,padx=15)#runs function to read the data from txt file
+
+    def loadData(self):
+        with open ("saveList.txt","r") as f:
+            savedLbl = tk.Label(self.frame, text=f.read(),font =MEDIUM_FONT, bg = "light blue").pack()#dumps all the data onto the empty label
+        f.close()
+        clearFileButton = tk.Button(self.frame, text ="Clear Favourite List?", width =18, height =2, command= lambda:self.clearFile()).pack(pady=5, side = tk.LEFT)
+
+        songButton = tk.Button(self.frame, text ="Play First Song", width =18, height =2, command= lambda:self.playFirstSavedSong()).pack(pady=5, side = tk.LEFT)#these buttons will play the links based on their location in the title.
+        songButtonTwo = tk.Button(self.frame, text ="Play Second Song", width =18, height =2, command= lambda:self.playSecondSavedSong()).pack(pady=5, side = tk.LEFT)
+        songButtonThree = tk.Button(self.frame, text ="Play Third Song", width =18, height =2, command= lambda:self.playThirdSavedSong()).pack(pady=5, side = tk.LEFT)
+
+    def playFirstSavedSong(self):
+        f = open("saveList.txt","r")#opens the text file to read
+        lines = f.readlines()#reads all lines in file
+        video = pafy.new(lines[0])#hardcoded the positions as there was no way without cutting across the deadline to make a more efficient method
+        best = video.getbest()
+        playSong = best.url
+        os.startfile(playSong)#plays the saved link
+        f.close()
+
+    def playSecondSavedSong(self):
+        f = open("saveList.txt","r")
+        lines = f.readlines()
+        video = pafy.new(lines[2])
+        best = video.getbest()
+        playSong = best.url
+        os.startfile(playSong)
+        f.close()
+        
+    def playThirdSavedSong(self):
+        f = open("saveList.txt","r")
+        lines = f.readlines()
+        video = pafy.new(lines[4])
+        best = video.getbest()
+        playSong = best.url
+        os.startfile(playSong)
+        f.close()
+    def clearFile(self):
+        f = open("saveList.txt","r+")
+        f.truncate(0)#deletes all data in text file by setting size to 0
+        f.close()
+        
+        
+    def noEntryBox(self):
+        popup = tk.Tk()#creates a new frame 
+
+        def leavemini():
+            popup.destroy()#destroys frame
+
+        popup.wm_title("!")
+        label = tk.Label (popup, text="You have entered nothing! Please enter something", font =MEDIUM_FONT).pack()#prompts user to type something in first
+        b1 = tk.Button(popup, text="Got it", command = leavemini)
+        b1.pack()
+        popup.mainloop#ensures the tk frame shows 
+
+my_gui = app()
